@@ -1,38 +1,132 @@
 # Credit Card Fraud Detection
 
-A Python machine-learning project that classifies credit-card transactions as legitimate or potentially fraudulent using transaction attributes and historical transaction-activity features. The current reproducible baseline uses a **Random Forest classifier** and a chronological train/test split.
+A machine learning-based project that detects potentially fraudulent credit card transactions using transaction attributes, temporal patterns, and historical transaction activity features.
 
-## Project objective
+The project implements a **Random Forest Classifier** with chronological data splitting, fraud-focused evaluation metrics, and validation-based probability threshold optimization.
 
-Identify potentially fraudulent transactions while evaluating performance with fraud-focused metrics. Because fraudulent transactions are relatively rare, accuracy alone is not a sufficient measure; precision, recall, F1-score, average precision (PR-AUC) and the confusion matrix should also be reviewed.
+## Project Objective
 
-## Dataset files
+The objective is to identify potentially fraudulent transactions while minimizing false positives and maintaining strong fraud detection performance.
 
-| File | Records in supplied data | Current use |
+Since fraudulent transactions are relatively rare, the project evaluates the model using:
+
+- Precision
+- Recall
+- F2-Score
+- Average Precision (AP)
+- ROC-AUC
+- Confusion Matrix
+
+## Dataset Description
+
+The project uses three supplied datasets:
+
+| Dataset | Records | Usage |
 |---|---:|---|
-| `Transaction.csv` | 100,000 | Used by the current training script |
-| `Customer.csv` | 10,127 | Included as an additional dataset; not currently integrated into the model |
-| `Call_history.csv` | 101,174 | Included as an additional dataset; not currently integrated into the model |
+| Transaction.csv | 100,000 | Used for model training and evaluation |
+| Customer.csv | 10,127 | Additional dataset; not currently integrated |
+| Call_history.csv | 101,174 | Additional dataset; not currently integrated |
 
-The model currently uses `Transaction.csv` only. The customer and call-history datasets are not joined because the supplied implementation does not establish a verified transaction-to-customer mapping. They should not be described as model inputs until a valid join and feature pipeline are implemented.
+**Note:** The current implementation uses only `Transaction.csv`. Customer and call-history records are not integrated because a verified transaction-to-customer mapping has not yet been established.
 
 ## Methodology
 
-1. Load transaction records and clean the amount and transaction timestamp.
-2. Create time-based features such as hour, weekday and night-time indicator.
-3. Create log-transformed transaction amount and trailing 1-hour/24-hour transaction-count and amount features. Rolling features use prior transactions only.
-4. Encode categorical transaction attributes using the training period only; unseen test-period categories are safely ignored.
-5. Split records chronologically: earlier records for training and later records for testing.
-6. Train a Random Forest classifier with `class_weight="balanced"`.
-7. Evaluate using a confusion matrix, precision, recall, F1-score, average precision and ROC-AUC.
-8. Save the trained model, feature order, test predictions and metrics.
+The project follows these steps:
 
-**Leakage prevention:** `Fraud` is the target label and is explicitly excluded from the model's input features. The chronological split is created before fitting categorical encodings, so future test-only categories do not influence the training feature schema. Do not train or evaluate a model with the target column included in `X`.
+1. **Data Preprocessing:** Load transaction records and clean transaction amounts and timestamps.
+2. **Feature Engineering:** Extract hour, weekday, night-time indicators, and log-transformed transaction amounts.
+3. **Temporal Features:** Generate trailing 1-hour and 24-hour transaction count and amount features using only earlier transactions.
+4. **Categorical Encoding:** Fit categorical encoders using the training period only.
+5. **Chronological Splitting:** Divide the dataset into 70% training, 15% validation, and 15% testing.
+6. **Model Training:** Train a Random Forest classifier with balanced class weighting.
+7. **Threshold Optimization:** Select the probability threshold by maximizing F2-score on the validation dataset.
+8. **Model Evaluation:** Evaluate performance on the untouched chronological test dataset.
+9. **Result Generation:** Save the trained model, predictions, metrics, and visualization graphs.
 
-## Repository structure
+### Data Leakage Prevention
+
+- The `Fraud` target variable is excluded from model input features.
+- Chronological splitting is performed before fitting categorical encoders.
+- Rolling transaction features use only past transactions.
+- The validation dataset is used for threshold optimization.
+- The final test dataset is reserved for independent evaluation.
+
+## Model Configuration
+
+| Parameter | Configuration |
+|---|---|
+| Algorithm | Random Forest Classifier |
+| Class Weight | Balanced |
+| Training Split | 70% |
+| Validation Split | 15% |
+| Testing Split | 15% |
+| Input Features | 43 |
+| Threshold Selection | Validation F2-score |
+| Selected Threshold | 0.269280 |
+
+## Model Performance
+
+The model was evaluated on a chronological test dataset containing 14,999 transactions.
+
+### Evaluation Metrics
+
+| Metric | Default Threshold (0.50) | Tuned Threshold |
+|---|---:|---:|
+| Precision | 0.8458 | 0.5631 |
+| Recall | 0.6138 | 0.7239 |
+| F2-Score | 0.6494 | 0.6848 |
+
+Additional test metrics:
+
+| Metric | Result |
+|---|---:|
+| Average Precision | 0.7506 |
+| ROC-AUC | 0.9455 |
+
+The validation-selected threshold improves fraud recall and F2-score compared with the default threshold, while reducing precision. This demonstrates the trade-off between detecting more fraudulent transactions and generating additional false-positive alerts.
+
+### Confusion Matrix
+
+At the validation-selected threshold:
+
+| Actual / Predicted | Legitimate | Fraud |
+|---|---:|---:|
+| Legitimate | 14,162 | 301 |
+| Fraud | 148 | 388 |
+
+## Results and Visualizations
+
+The following graphs are generated during model training.
+
+### 1. Confusion Matrix
+
+Shows correctly and incorrectly classified legitimate and fraudulent transactions.
+
+![Confusion Matrix](outputs/confusion_matrix.png)
+
+### 2. Precision-Recall Curve
+
+Illustrates the trade-off between precision and recall across different classification thresholds.
+
+![Precision Recall Curve](outputs/precision_recall_curve.png)
+
+### 3. ROC Curve
+
+Shows the model's ability to distinguish fraudulent transactions from legitimate transactions.
+
+![ROC Curve](outputs/roc_curve.png)
+
+### 4. Feature Importance
+
+Displays the 15 most influential features according to the Random Forest model.
+
+![Feature Importance](outputs/feature_importance.png)
+
+## Repository Structure
 
 ```text
 credit-card-fraud-detection/
+│
 ├── Transaction.csv
 ├── Customer.csv
 ├── Call_history.csv
@@ -40,69 +134,119 @@ credit-card-fraud-detection/
 ├── train_model.py
 ├── requirements.txt
 ├── README.md
-└── outputs/                 # created when training runs
+├── .gitignore
+│
+└── outputs/
+    ├── confusion_matrix.png
+    ├── precision_recall_curve.png
+    ├── roc_curve.png
+    ├── feature_importance.png
+    ├── feature_importance.csv
+    ├── metrics.json
     ├── fraud_model.joblib
-    ├── fraud_predictions.csv
-    └── metrics.json
+    └── fraud_predictions.csv
 ```
 
-The currently published GitHub repository contains older generated artifacts (`fraud_model.joblib`, `final_features.parquet` and `fraud_predictions.csv`). These were produced by the earlier notebook, whose model inputs included the target label. **Delete those three old files from GitHub** when replacing the project files; do not use them for performance claims or inference. This cleaned project package intentionally omits them so they cannot be mistaken for valid outputs.
+**Note:** The `outputs/` directory is generated when the training script runs. Large model and prediction files may be excluded from GitHub through `.gitignore`.
 
-## Installation
+## Installation and Setup
 
-Python 3.10 or newer is recommended.
+### Prerequisites
+
+- Python 3.10 or newer
+- pip
+- Git
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Debalina27/credit-card-fraud-detection.git
+
 cd credit-card-fraud-detection
+```
+
+### 2. Create a Virtual Environment
+
+```bash
 python -m venv .venv
 ```
 
-Activate the environment:
+### 3. Activate the Environment
+
+**Windows:**
 
 ```bash
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
+.venv\Scripts\activate
+```
 
-# macOS/Linux
+**Linux/macOS:**
+
+```bash
 source .venv/bin/activate
 ```
 
-Install dependencies:
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Run the model
+## Run the Project
 
-Keep `Transaction.csv` in the repository root, then run:
+Ensure that `Transaction.csv` is available in the project root directory.
+
+Execute:
 
 ```bash
 python train_model.py
 ```
 
-The script creates an `outputs/` directory containing:
+After successful execution, the script generates the `outputs/` directory containing:
 
-- `fraud_model.joblib` — trained model and its expected feature-column order.
-- `fraud_predictions.csv` — test-set actual labels, predicted labels and fraud probabilities.
-- `metrics.json` — test-set evaluation metrics.
+- `fraud_model.joblib` – Trained Random Forest model and associated configuration.
+- `fraud_predictions.csv` – Test-set predictions and probabilities.
+- `metrics.json` – Model evaluation metrics.
+- `confusion_matrix.png` – Confusion matrix visualization.
+- `precision_recall_curve.png` – Precision-recall visualization.
+- `roc_curve.png` – ROC visualization.
+- `feature_importance.png` – Feature importance visualization.
+- `feature_importance.csv` – Feature importance values.
 
-## Important limitations
+## Technologies Used
 
-- This is an experimental academic baseline, not a production payment-fraud prevention system.
-- The supplied customer and call-history files are not currently used by the model.
-- Results must be regenerated after the leakage fix. Do not quote metrics from the previously committed model or prediction file as valid performance results.
-- A chronological holdout is used, but further validation, threshold tuning, drift monitoring, and testing on genuinely unseen data are needed before real-world use.
+- **Programming Language:** Python
+- **Data Processing:** Pandas, NumPy
+- **Machine Learning:** Scikit-learn
+- **Algorithm:** Random Forest
+- **Data Visualization:** Matplotlib
+- **Model Serialization:** Joblib
+- **Development Environment:** Jupyter Notebook, VS Code
 
-## Technologies
+## Limitations and Future Improvements
 
-- Python
-- Pandas and NumPy
-- Scikit-learn
-- Random Forest
-- Joblib
+### Current Limitations
+
+- Customer and call-history datasets are not yet integrated.
+- The project is an experimental academic baseline, not a production payment-fraud prevention system.
+- Threshold optimization involves a trade-off between precision and recall.
+- Further validation across different time periods is required.
+- Random Forest feature importance indicates model reliance, not causal relationships.
+
+### Future Improvements
+
+- Integrate customer and call-history data using a verified mapping.
+- Compare Random Forest with XGBoost and other classification algorithms.
+- Explore explainable AI techniques such as SHAP.
+- Develop a real-time fraud prediction API.
+- Build an interactive fraud monitoring dashboard.
+- Evaluate model performance under changing transaction patterns.
 
 ## License
 
-Add a license file if you intend to permit reuse of this project. Until then, no license is specified.
+No license is currently specified. A license can be added if the project is intended for public reuse.
+
+---
+
+**Author:** Debalina Das
+
+**GitHub:** https://github.com/Debalina27/credit-card-fraud-detection
